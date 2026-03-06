@@ -1,0 +1,288 @@
+package com.itr;
+
+import com.itr.dto.Itr1FormData;
+import com.itr.dto.Itr1FormData.*;
+import com.itr.service.TaxComputationService;
+import com.itr.service.Itr1ValidationService;
+import org.junit.jupiter.api.*;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Phase 2 Unit Tests — Tax Computation & Validation.
+ * Tests CBDT AY 2025-26 compliance.
+ */
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+class TaxComputationTests {
+
+    private final TaxComputationService taxService = new TaxComputationService();
+    private final Itr1ValidationService validationService = new Itr1ValidationService();
+
+    // ═══════════════════════════════════════════════════════════
+    // OLD REGIME TAX SLAB TESTS
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    @Order(1)
+    void testOldRegime_IncomeBelow250000_NoTax() {
+        RegimeTaxBreakdown result = taxService.computeRegime("old", 200000, 0);
+        assertEquals(0, result.getTaxOnIncome());
+        assertEquals(0, result.getTotalTax());
+    }
+
+    @Test
+    @Order(2)
+    void testOldRegime_IncomeAt500000_WithRebate() {
+        // Rule 201: Income ≤ 5L → rebate u/s 87A = min(tax, 12500)
+        RegimeTaxBreakdown result = taxService.computeRegime("old", 500000, 0);
+        assertEquals(12500, result.getTaxOnIncome()); // 5% of (5L - 2.5L)
+        assertEquals(12500, result.getRebateU87A());
+        assertEquals(0, result.getTotalTax()); // Fully rebated
+    }
+
+    @Test
+    @Order(3)
+    void testOldRegime_Income800000() {
+        // GTI 800000, deductions 0
+        // Tax: 0-2.5L=0, 2.5-5L=12500, 5-8L=60000 = 72500
+        RegimeTaxBreakdown result = taxService.computeRegime("old", 800000, 0);
+        assertEquals(72500, result.getTaxOnIncome());
+        assertEquals(0, result.getRebateU87A());
+        double expectedCess = Math.round(72500 * 0.04);
+        assertEquals(expectedCess, result.getCessAt4Pct());
+    }
+
+    @Test
+    @Order(4)
+    void testOldRegime_Income1500000() {
+        // 0-2.5L=0, 2.5-5L=12500, 5-10L=100000, 10-15L=150000 = 262500
+        RegimeTaxBreakdown result = taxService.computeRegime("old", 1500000, 0);
+        assertEquals(262500, result.getTaxOnIncome());
+        assertEquals(0, result.getRebateU87A());
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // NEW REGIME TAX SLAB TESTS
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    @Order(10)
+    void testNewRegime_IncomeBelow300000_NoTax() {
+        RegimeTaxBreakdown result = taxService.computeRegime("new", 250000, 0);
+        assertEquals(0, result.getTaxOnIncome());
+        assertEquals(0, result.getTotalTax());
+    }
+
+    @Test
+    @Order(11)
+    void testNewRegime_IncomeAt700000_WithRebate() {
+        // Rule 200: Income ≤ 7L → rebate u/s 87A = min(tax, 25000)
+        RegimeTaxBreakdown result = taxService.computeRegime("new", 700000, 0);
+        double expectedTax = (700000 - 300000) * 0.05; // 20000
+        assertEquals(20000, result.getTaxOnIncome());
+        assertEquals(20000, result.getRebateU87A());
+        assertEquals(0, result.getTotalTax()); // Fully rebated
+    }
+
+    @Test
+    @Order(12)
+    void testNewRegime_MarginalRelief_710000() {
+        // Rule 200: Income between 7L and 7,22,230 → marginal relief
+        // Tax on 710000 = 5% of (7L-3L) + 10% of (710000-7L) = 20000 + 1000 = 21000
+        // But excess over 7L = 10000. Tax should not exceed 10000.
+        RegimeTaxBreakdown result = taxService.computeRegime("new", 710000, 0);
+        assertTrue(result.getMarginalRelief() > 0, "Marginal relief should apply");
+        // After marginal relief: tax should be at most 10000 (excess income)
+        assertEquals(10000, result.getTaxAfterRebate());
+    }
+
+    @Test
+    @Order(13)
+    void testNewRegime_Income1000000() {
+        // 0-3L=0, 3-7L=20000, 7-10L=30000 = 50000
+        RegimeTaxBreakdown result = taxService.computeRegime("new", 1000000, 0);
+        assertEquals(50000, result.getTaxOnIncome());
+    }
+
+    @Test
+    @Order(14)
+    void testNewRegime_Income1500000() {
+        // 0-3L=0, 3-7L=20000, 7-10L=30000, 10-12L=30000, 12-15L=60000 = 140000
+        RegimeTaxBreakdown result = taxService.computeRegime("new", 1500000, 0);
+        assertEquals(140000, result.getTaxOnIncome());
+    }
+
+    @Test
+    @Order(15)
+    void testNewRegime_Income2000000() {
+        // 0-3L=0, 3-7L=20000, 7-10L=30000, 10-12L=30000, 12-15L=60000, 15-20L=150000 = 290000
+        RegimeTaxBreakdown result = taxService.computeRegime("new", 2000000, 0);
+        assertEquals(290000, result.getTaxOnIncome());
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // CESS = 4% OF (TAX + SURCHARGE)
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    @Order(20)
+    void testCess4Percent() {
+        RegimeTaxBreakdown result = taxService.computeRegime("old", 800000, 0);
+        // Tax = 72500, no surcharge (income < 50L)
+        assertEquals(Math.round(72500 * 0.04), result.getCessAt4Pct());
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // DEDUCTION WITH GTI TESTS
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    @Order(25)
+    void testTaxWithDeductions_OldRegime() {
+        // GTI 1000000, Deductions 150000 → taxable = 850000
+        TaxComputation c = taxService.computeTax(1000000, 150000, false);
+        assertEquals(850000, c.getTotalTaxableIncome());
+    }
+
+    @Test
+    @Order(26)
+    void testTaxWithDeductions_NewRegime() {
+        // GTI 1000000, Deductions 50000 (only 80CCD2) → taxable = 950000
+        TaxComputation c = taxService.computeTax(1000000, 50000, true);
+        assertEquals(950000, c.getTotalTaxableIncome());
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // VALIDATION TESTS
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    @Order(30)
+    void testValidation_NewRegime_OldDeductionsFlagged() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .deductionsVIA(DeductionsVIA.builder().section80C(100000).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("80C not allowed in new regime")),
+                "Should flag 80C in new regime: " + errors);
+    }
+
+    @Test
+    @Order(31)
+    void testValidation_80EE_80EEA_MutuallyExclusive() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(false).build())
+                .deductionsVIA(DeductionsVIA.builder().section80EE(50000).section80EEA(100000).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Rule 124")),
+                "Should flag mutually exclusive 80EE/80EEA");
+    }
+
+    @Test
+    @Order(32)
+    void testValidation_TDS_ExceedsSalary() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .scheduleSalary(ScheduleSalary.builder().grossSalary(500000).build())
+                .taxesPaid(ScheduleTaxesPaid.builder().tdsOnSalary(600000).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Rule 193")),
+                "Should flag TDS exceeding gross salary");
+    }
+
+    @Test
+    @Order(33)
+    void testValidation_Income50LCap() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .computation(TaxComputation.builder().totalTaxableIncome(5500000).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Rule 117")),
+                "Should flag income exceeding 50L for ITR-1");
+    }
+
+    @Test
+    @Order(34)
+    void testValidation_InvalidPAN() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("INVALID").assesseeName("Test").newTaxRegime(true).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Invalid PAN")),
+                "Should flag invalid PAN format");
+    }
+
+    @Test
+    @Order(35)
+    void testValidation_SelfOccupied_NewRegime_NoInterest() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .scheduleHP(ScheduleHouseProperty.builder()
+                        .propertyType("self_occupied")
+                        .interestOnLoanU24b(100000)
+                        .build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("163")),
+                "Should flag HP interest for self-occupied in new regime: " + errors);
+    }
+
+    @Test
+    @Order(36)
+    void testWarnings_RegimeComparison() {
+        // Build a form where old regime has lower tax
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .computation(TaxComputation.builder()
+                        .oldRegime(RegimeTaxBreakdown.builder().regime("old").totalTax(10000).build())
+                        .newRegime(RegimeTaxBreakdown.builder().regime("new").totalTax(15000).build())
+                        .build())
+                .build();
+
+        List<String> warnings = validationService.getWarnings(form);
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("Old regime results in lower tax")),
+                "Should warn about better old regime");
+    }
+
+    @Test
+    @Order(37)
+    void testValidation_EntertainmentAllowance_NewRegime() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .scheduleSalary(ScheduleSalary.builder()
+                        .grossSalary(800000).salaryU17_1(800000)
+                        .entertainmentAllowance(5000).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Rule 164")),
+                "Entertainment allowance should be flagged in new regime");
+    }
+
+    @Test
+    @Order(38)
+    void testValidation_ProfessionalTax_NewRegime() {
+        Itr1FormData form = Itr1FormData.builder()
+                .partA(PartA_GeneralInfo.builder().pan("ABCDE1234F").assesseeName("Test").newTaxRegime(true).build())
+                .scheduleSalary(ScheduleSalary.builder()
+                        .grossSalary(800000).salaryU17_1(800000)
+                        .professionalTax(2500).build())
+                .build();
+
+        List<String> errors = validationService.validate(form);
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Rule 169")),
+                "Professional tax should be flagged in new regime");
+    }
+}

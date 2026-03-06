@@ -152,6 +152,15 @@ export default function ClientDetailPage() {
                 >
                   {hasData ? 'Update Prefill' : 'Upload Prefill'}
                 </button>
+
+                {hasData && (
+                  <button
+                    onClick={() => router.push(`/client/${client.id}/itr/${year}`)}
+                    className="w-full text-sm py-2 rounded-lg transition-colors btn-primary mt-2"
+                  >
+                    Edit ITR-1 Form
+                  </button>
+                )}
               </div>
             );
           })}
