@@ -55,6 +55,7 @@ export default function RegisterPage() {
                 type="email"
                 className="input-field"
                 placeholder="you@example.com"
+                suppressHydrationWarning
                 {...register('email', {
                   required: 'Email is required',
                   pattern: {
@@ -74,6 +75,7 @@ export default function RegisterPage() {
                 type="password"
                 className="input-field"
                 placeholder="Min 8 characters"
+                suppressHydrationWarning
                 {...register('password', {
                   required: 'Password is required',
                   minLength: {
@@ -97,6 +99,7 @@ export default function RegisterPage() {
               type="submit"
               disabled={loading}
               className="btn-primary w-full flex items-center justify-center"
+              suppressHydrationWarning
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
