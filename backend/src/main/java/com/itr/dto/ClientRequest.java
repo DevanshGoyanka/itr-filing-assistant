@@ -20,7 +20,7 @@ public class ClientRequest {
     @Size(max = 15, message = "Mobile must not exceed 15 characters")
     private String mobile;
 
-    @Pattern(regexp = "^[0-9]{12}$", message = "Aadhaar must be exactly 12 numeric digits")
+    @Pattern(regexp = "^$|^[0-9]{12}$", message = "Aadhaar must be exactly 12 numeric digits")
     private String aadhaar;
 
     private LocalDate dob;

@@ -197,7 +197,15 @@ export default function DashboardPage() {
   const handleCreateClient = async (data: ClientRequest) => {
     try {
       setCreateError('');
-      await clientApi.create(data);
+      // Convert empty strings to null/undefined for optional fields
+      const cleanedData = {
+        ...data,
+        email: data.email || undefined,
+        mobile: data.mobile || undefined,
+        aadhaar: data.aadhaar || undefined,
+        dob: data.dob || undefined,
+      };
+      await clientApi.create(cleanedData);
       setShowAddClient(false);
       fetchClients();
     } catch (err: any) {

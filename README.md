@@ -6,18 +6,11 @@
 - **Backend:** Spring Boot 3 + Spring Security + JWT
 - **Database:** PostgreSQL 15
 - **Frontend:** Next.js 15 + TypeScript + TailwindCSS + Zustand
-- **Infrastructure:** Docker Compose
 
 ### Quick Start
 
 ```bash
-# Start all services with Docker
-docker-compose up --build
-
-# Or run individually:
-
-# 1. Start PostgreSQL
-docker-compose up postgres
+# 1. Start PostgreSQL (install separately or use any running instance)
 
 # 2. Start Backend (requires Java 17+)
 cd backend && ./mvnw spring-boot:run
