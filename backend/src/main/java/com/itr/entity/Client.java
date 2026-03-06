@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "clients")
+@Table(name = "clients", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "pan"}))
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Client {
 
@@ -20,7 +20,7 @@ public class Client {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(unique = true, nullable = false, length = 10)
+    @Column(nullable = false, length = 10)
     private String pan;
 
     @Column(nullable = false, length = 125)

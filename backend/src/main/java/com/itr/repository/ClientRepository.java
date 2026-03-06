@@ -14,5 +14,5 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     @Query("SELECT c FROM Client c WHERE c.id = :id AND c.user.id = :userId")
     Optional<Client> findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
-    boolean existsByPan(String pan);
+    boolean existsByPanAndUserId(String pan, Long userId);
 }

@@ -55,7 +55,7 @@ public class ClientService {
 
     @Transactional
     public ClientResponse createClient(ClientRequest request, Long userId) {
-        if (clientRepository.existsByPan(request.getPan())) {
+        if (clientRepository.existsByPanAndUserId(request.getPan(), userId)) {
             throw new ConflictException("PAN already registered: " + request.getPan());
         }
 
