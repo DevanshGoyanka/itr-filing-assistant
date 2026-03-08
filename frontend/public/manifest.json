@@ -1,0 +1,9 @@
+{
+  "name": "ITR-1 Filing Assistant",
+  "short_name": "ITR-1",
+  "description": "Tax Filing Assistant for ITR-1 returns",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb"
+}
